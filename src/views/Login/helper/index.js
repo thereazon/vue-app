@@ -5,3 +5,7 @@ export const StatusType = {
   CODE_SUCCESS: 'CODE_SUCCESS',
   CODE_FAIL: 'CODE_FAIL',
 }
+
+export const StorageKeys = {
+  ACCOUNT: 'login.account',
+}
