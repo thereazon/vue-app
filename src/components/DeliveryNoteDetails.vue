@@ -1,143 +1,105 @@
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { Collapse, CollapseItem, Checkbox } from 'vant'
+import { computed, reactive, ref, watch } from 'vue'
+import { Collapse, CollapseItem, Checkbox, Button, Icon } from 'vant'
+
+const props = defineProps({
+  deliveries: {
+    type: Array,
+    required: true,
+  },
+})
+
+const DELIVERY_CODE = 'O'
+const deliveryTableData = computed(() => {
+  return props.deliveries.map(({ items, ...remainDeliveryProperties }) => ({
+    code: DELIVERY_CODE,
+    items: items.map((item) => ({
+      checked: false,
+      ...item,
+    })),
+    ...remainDeliveryProperties,
+  }))
+})
+
+const currentDelivery = computed(() => {
+  return deliveryTableData.value[currentIndex.value]
+})
+
+let _filterDeliveriesItems = ref([])
+const filterDeliveryItems = computed({
+  get() {
+    const filterByActiveTemperature = (deliveryItem) => {
+      if (tabActive.value === 'all') return true
+      return deliveryItem.temp_zone === tabActive.value
+    }
+
+    const sortByRecNo = (a, b) => a.rec_no - b.rec_no
+
+    // eslint-disable-next-line vue/no-side-effects-in-computed-properties
+    _filterDeliveriesItems.value = currentDelivery.value.items.filter(filterByActiveTemperature).sort(sortByRecNo)
+    return _filterDeliveriesItems.value
+  },
+  set(val) {
+    _filterDeliveriesItems.value = [...val]
+  },
+})
 
 const allChecked = ref(false)
 const isAllChecked = ref(false)
 const tabActive = ref('all')
 const collapseActiveNames = ref([])
-const pageSize = 5
-const total = ref(0)
-const currentPage = ref(1)
-const pageTotal = computed(() => Math.ceil(total.value / pageSize))
+const MINIMUM_TOTAL = 1
+const total = computed(() => deliveryTableData.value.length || MINIMUM_TOTAL)
+const currentIndex = ref(0)
+const currentPage = computed(() => currentIndex.value + 1)
+const pageTotal = computed(() => total.value)
 const state = reactive({
   tabList: [
     { value: 'all', title: '全部', bg: '#fff', color: '#044d80' },
-    { value: 'normal', title: '常溫', bg: '#6dbe5b', color: '#fff' },
-    { value: 'Chilled', title: '冷藏', bg: '#086eb6', color: '#fff' },
-    { value: 'Frozen', title: '冷凍', bg: '#044d80', color: '#fff' },
+    { value: 'D', title: '常溫', bg: '#6dbe5b', color: '#fff' },
+    { value: 'C', title: '冷藏', bg: '#086eb6', color: '#fff' },
+    { value: 'F', title: '冷凍', bg: '#044d80', color: '#fff' },
   ],
-  mockData: {
-    order: '202020430',
-    code: 'O',
-    date: '02/06/2021',
-    weight: '1332.52',
-    total: 8,
-    currentPage: 1,
-    list: [
-      {
-        productId: 12345678901234234,
-        temperature: 'Frozen',
-        name: '麥當勞冷凍麥克炸雞排',
-        count: 11,
-        package: '箱',
-        checked: false,
-        detailsList: [
-          {
-            id: 1,
-            no: 120720,
-            name: '#12',
-            count: 6,
-            package: '箱',
-            abnormal: false,
-          },
-          {
-            id: 2,
-            no: 120720,
-            name: '#12',
-            count: 5,
-            package: '箱',
-            abnormal: true,
-          },
-        ],
-      },
-      {
-        productId: 1234457890124214,
-        temperature: 'Chilled',
-        name: '滿福麵包C',
-        count: 11,
-        package: '箱',
-        checked: false,
-        detailsList: [
-          {
-            id: 1,
-            no: 120720,
-            name: '#12',
-            count: 6,
-            package: '箱',
-            abnormal: false,
-          },
-          {
-            id: 2,
-            no: 120720,
-            name: '#12',
-            count: 5,
-            package: '箱',
-            abnormal: true,
-          },
-        ],
-      },
-      {
-        productId: 11245567890124214,
-        temperature: 'normal',
-        name: '點點卡',
-        count: 11,
-        package: '箱',
-        checked: false,
-        detailsList: [
-          {
-            id: 1,
-            no: 120720,
-            name: '#12',
-            count: 6,
-            package: '箱',
-            abnormal: false,
-          },
-          {
-            id: 2,
-            no: 120720,
-            name: '#12',
-            count: 5,
-            package: '箱',
-            abnormal: true,
-          },
-        ],
-      },
-    ],
-  },
 })
+
 const handleTab = (id) => {
   tabActive.value = id
 }
 const prevPage = () => {
-  if (currentPage.value === 1) {
+  if (currentIndex.value === 0) {
     return
   } else {
-    currentPage.value -= 1
+    currentIndex.value -= 1
   }
 }
 const nextPage = () => {
   if (currentPage.value === pageTotal.value) {
     return
   } else {
-    currentPage.value += 1
+    currentIndex.value += 1
   }
 }
-onMounted(() => {
-  total.value = state.mockData.total
-  currentPage.value = state.mockData.currentPage
-})
-watch(allChecked, (newVal, oldVal) => {
-  if (newVal) {
-    state.mockData.list.forEach((item) => (item.checked = true))
-  }
-  if (isAllChecked.value && oldVal) {
-    state.mockData.list.forEach((item) => (item.checked = false))
-  }
-})
+
 watch(
-  () => state.mockData.list,
+  () => allChecked.value,
   (newVal, oldVal) => {
+    if (newVal) {
+      filterDeliveryItems.value.forEach((item) => (item.checked = true))
+    }
+    if (isAllChecked.value && oldVal) {
+      filterDeliveryItems.value.forEach((item) => (item.checked = false))
+    }
+  },
+  { deep: true },
+)
+
+watch(
+  () => filterDeliveryItems.value,
+  (newVal, oldVal) => {
+    if (newVal.length === 0) {
+      allChecked.value = false
+      return
+    }
     isAllChecked.value = newVal.every((item) => item.checked === true)
     if (isAllChecked.value) {
       allChecked.value = true
@@ -150,15 +112,31 @@ watch(
 </script>
 
 <template>
-  <div class="h-screen pt-[26px] px-5 bg-[#daf0ff] flex flex-col items-center">
+  <div class="h-auto max-h-screen pt-[26px] flex flex-col items-center">
     <div class="w-[50%] h-8 flex justify-between items-center mb-5">
-      <div class="w-8 h-full rounded-full bg-white" @click="prevPage()"></div>
+      <Button
+        type="primary"
+        color="#086eb6"
+        :plain="currentPage === 1"
+        class="w-8 h-8 rounded-full"
+        @click="prevPage()"
+      >
+        <Icon name="arrow-left" />
+      </Button>
       <div
         class="w-16 h-6 text-[0.875rem] rounded-full bg-white text-primary border border-solid border-primary flex justify-center items-center"
       >
         {{ currentPage }} / {{ pageTotal }}
       </div>
-      <div class="w-8 h-full rounded-full bg-white" @click="nextPage()"></div>
+      <Button
+        type="primary"
+        color="#086eb6"
+        :plain="currentPage === pageTotal"
+        class="w-8 h-8 rounded-full"
+        @click="nextPage()"
+      >
+        <Icon name="arrow" />
+      </Button>
     </div>
 
     <ul class="w-[90%] h-7 mb-5 flex items-center justify-between">
@@ -179,70 +157,69 @@ watch(
         <div class="h-6 mb-2 font-bold flex justify-between items-center">
           <div class="flex items-center text-[0.875rem] text-[#044d80]">
             <span class="mr-[10px]">送貨單號</span>
-            <span>{{ state.mockData.order }}</span>
+            <span>{{ currentDelivery.no }}</span>
           </div>
           <div class="w-14 h-full flex justify-center items-center bg-[#044d80] text-white text-[0.75rem] rounded-full">
-            {{ state.mockData.code }}代號
+            {{ currentDelivery.code }}代號
           </div>
         </div>
         <div class="text-gray text-[0.875rem] flex justify-between items-center">
           <div class="flex items-center">
-            <img src="dispatching_calendar.png" class="w-4 h-4 mr-2" alt="" />
-            <div class="bg-[#f2f2f2] w-24 h-5 pl-2 flex items-center">{{ state.mockData.date }}</div>
+            <img src="/dispatching_calendar.png" class="w-4 h-4 mr-2" alt="" />
+            <div class="bg-[#f2f2f2] w-24 h-5 pl-2 flex items-center">{{ currentDelivery.date }}</div>
           </div>
           <div class="flex items-center">
-            <img src="dispatching_box.png" class="w-4 h-4 mr-2" alt="" />
-            <div class="bg-[#f2f2f2] w-20 h-5 pl-2 flex items-center">{{ state.mockData.weight }}</div>
+            <img src="/dispatching_box.png" class="w-4 h-4 mr-2" alt="" />
+            <div class="bg-[#f2f2f2] w-20 h-5 pl-2 flex items-center">{{ currentDelivery.cube }}</div>
           </div>
         </div>
       </div>
 
-      <div class="flex items-center px-4 py-[10px] border-0 border-y border-solid border-[#f2f2f2]">
+      <div
+        v-if="filterDeliveryItems.length"
+        class="flex items-center px-4 py-[10px] border-0 border-y border-solid border-[#f2f2f2]"
+      >
         <div class="w-[10%]">
           <Checkbox v-model="allChecked" @click.stop></Checkbox>
         </div>
         <span class="text-[#044d80] text-[0.875rem] font-bold">全選</span>
       </div>
       <Collapse v-model="collapseActiveNames">
-        <CollapseItem v-for="product in state.mockData.list" :key="product.productId" :name="product.productId">
+        <CollapseItem v-for="product in filterDeliveryItems" :key="product.wrin" :name="product.wrin">
           <template #title>
             <div class="flex items-center">
               <div class="w-[10%]">
                 <Checkbox v-model="product.checked" @click.stop></Checkbox>
               </div>
               <div class="w-[50%] flex flex-col leading-snug">
-                <span class="text-[#044d80] text-[0.875rem] font-bold truncate">{{ product.name }}</span>
-                <span class="text-gray text-[0.75rem] truncate">{{ product.productId }}</span>
+                <span class="text-[#044d80] text-[0.875rem] font-bold truncate">{{ product.item_desc }}</span>
+                <span class="text-gray text-[0.75rem] truncate">{{ product.wrin }}</span>
               </div>
               <div class="w-[40%] flex items-center text-[0.875rem] font-bold text-[#044d80]">
                 <div class="min-w-[40%] flex justify-between items-center">
-                  <span>{{ product.count }}</span>
-                  <span>{{ product.package }}</span>
+                  <span>{{ product.qty }}</span>
+                  <span>{{ product.uom }}</span>
                 </div>
               </div>
             </div>
           </template>
 
           <li
-            v-for="item in product.detailsList"
-            :key="item.id"
+            v-for="item in product.data"
+            :key="item.uid"
             class="detail-list list-none mx-4 leading-snug h-11 flex items-center text-gray"
           >
-            <div class="w-[50%] ml-[10%] flex flex-col leading-snug">
-              <span class="text-[0.875rem] truncate">{{ item.no }}</span>
-              <span class="text-[0.75rem] truncate">{{ item.name }}</span>
+            <div class="w-[50%] ml-[10%] leading-snug">
+              <span class="text-[0.875rem] truncate">{{ item.batch_no }}</span>
             </div>
             <div class="w-[40%] flex justify-between items-center text-[0.875rem]">
               <div class="min-w-[40%] flex justify-between items-center">
-                <span>{{ item.count }}</span>
-                <span>{{ item.package }}</span>
+                <span>{{ item.qty }}</span>
+                <span>{{ item.uom }}</span>
               </div>
-              <div
-                v-if="item.abnormal"
-                class="w-12 h-5 text-[0.75rem] flex justify-center items-center bg-warning text-white rounded-full"
+              <Button color="#eb5e55" round type="danger" size="mini" @click="$emit('deliveryItemAbnormal', item)"
+                >異常+</Button
               >
-                異常+
-              </div>
             </div>
           </li>
         </CollapseItem>

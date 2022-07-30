@@ -6,9 +6,10 @@ import useDispatchInfo from '@/views/Dispatch/store'
 import useRestaurant from '@/views/Restaurant/store'
 import RestaurantMenuPopup from './components/RestaurantMenuPopup.vue'
 import RestaurantInfoCard from '@/components/RestaurantInfoCard.vue'
+import DeliveryNoteDetails from '@/components/DeliveryNoteDetails.vue'
 
 const { dispatch, currentRestaurant } = useDispatchInfo()
-const { getDeliveryAction } = useRestaurant()
+const restaurantStore = useRestaurant()
 const router = useRouter()
 const route = useRoute()
 
@@ -21,7 +22,7 @@ onMounted(() => {
       },
     })
   } else {
-    getDeliveryAction(currentRestaurant.id)
+    restaurantStore.getDeliveryAction(currentRestaurant.id)
   }
 })
 
@@ -39,6 +40,9 @@ const onClickLeft = () => {
 const onClickRight = () => {
   isShowMenu.value = true
 }
+const deliveryItemAbnormalHandle = (item) => {
+  // TODO: 異常處理
+}
 </script>
 
 <template>
@@ -53,6 +57,13 @@ const onClickRight = () => {
         :temp_zone="dispatch.temp_zone"
         :no="dispatch.no"
         :restaurant="currentRestaurant"
+      />
+    </div>
+    <div class="px-[26px] bg-[#F2F8FB] pt-8 pb-4">
+      <DeliveryNoteDetails
+        v-if="restaurantStore.deliveries"
+        :deliveries="restaurantStore.deliveries"
+        @deliveryItemAbnormal="deliveryItemAbnormalHandle"
       />
     </div>
   </div>
